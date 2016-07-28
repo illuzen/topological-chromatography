@@ -1,4 +1,4 @@
-package java;
+package topochrom;
 
 import org.bitcoinj.core.Peer;
 import org.bitcoinj.core.PeerGroup;
@@ -7,7 +7,6 @@ import org.bitcoinj.core.Sha256Hash;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Created by snakecharmer1024 on 7/19/16.
@@ -99,9 +98,24 @@ public class PermutationManager
         // TODO write the distance matrix to file
     }
 
-    public Integer distanceBetweenPermutations(List<Integer> permutation1, List<Integer> permutation2)
+    // Kendall-Tau distance https://en.wikipedia.org/wiki/Kendall_tau_distance
+    public static Integer distanceBetweenPermutations(List<Integer> permutation1, List<Integer> permutation2)
     {
-        // TODO
-        return 0;
+        int distance = 0;
+        // loop over distinct unordered pairs of indices
+        for (int i = 0; i < permutation1.size(); i++)
+        {
+            for (int j = i + 1; j < permutation2.size(); j++)
+            {
+                // if i and j are in different orders in each permutation, then they will need to be swapped
+                if ((permutation1.get(i) > permutation1.get(j) && permutation2.get(i) < permutation2.get(j)) ||
+                        (permutation1.get(i) < permutation1.get(j) && permutation2.get(i) > permutation2.get(j)))
+                {
+                    // one transposition changes one such ordering, leaves all others intact
+                    distance++;
+                }
+            }
+        }
+        return distance;
     }
 }

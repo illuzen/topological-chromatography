@@ -1,11 +1,7 @@
-package java;
+package topochrom;
 
 import org.bitcoinj.core.*;
-import org.bitcoinj.core.listeners.PreMessageReceivedEventListener;
 
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -107,6 +103,7 @@ public class TopoChromExperiment {
 
     public static void main(String[] args)
     {
+
         // We will change this to ID_MAINNET when we productionize it...
         parameters = NetworkParameters.fromID(NetworkParameters.ID_TESTNET);
         initializeListeningPeers();
