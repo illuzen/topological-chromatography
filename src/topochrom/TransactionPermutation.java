@@ -1,6 +1,5 @@
-package java;
+package topochrom;
 
-import org.bitcoinj.core.Peer;
 import org.bitcoinj.core.Sha256Hash;
 
 import java.util.ArrayList;
@@ -12,14 +11,20 @@ import java.util.List;
 public class TransactionPermutation
 {
     public Sha256Hash txHash;
-    public Peer entryPeer;
     public List<Integer> permutation;
+    public int peerLabel;
 
-    public TransactionPermutation(Peer entryPeer, Sha256Hash txHash)
+    public TransactionPermutation(Sha256Hash txHash, int peerLabel)
     {
         this.txHash = txHash;
-        this.entryPeer = entryPeer;
+        this.peerLabel = peerLabel;
         this.permutation = new ArrayList<Integer>();
+    }
+
+    public void addIndex(int index)
+    {
+        assert permutation.contains(index) == false;
+        permutation.add(index);
     }
 
 }

@@ -1,6 +1,8 @@
-package java;
+package topochrom;
 import org.bitcoinj.core.*;
 import org.bitcoinj.core.listeners.PreMessageReceivedEventListener;
+
+import java.util.ArrayList;
 
 
 /**
@@ -8,15 +10,17 @@ import org.bitcoinj.core.listeners.PreMessageReceivedEventListener;
  */
 public class TransactionReceivedListener implements PreMessageReceivedEventListener {
 
-    public Sha256Hash targetTxHash;
+    public ArrayList<Sha256Hash> targetTxHashes;
 
-
-    public TransactionReceivedListener(Transaction tx) {
-        this(tx.getHash());
+    public TransactionReceivedListener()
+    {
+        super();
+        this.targetTxHashes = new ArrayList<Sha256Hash>();
     }
 
-    public TransactionReceivedListener(Sha256Hash hash) {
-        this.targetTxHash = hash;
+    public void addTargetTxHash(Sha256Hash hash)
+    {
+        this.targetTxHashes.add(hash);
     }
 
     public Message onPreMessageReceived(Peer peer, Message message)
@@ -26,7 +30,7 @@ public class TransactionReceivedListener implements PreMessageReceivedEventListe
             InventoryMessage invMessage = (InventoryMessage) message;
             for (InventoryItem item : invMessage.getItems())
             {
-                if (item.hash == this.targetTxHash)
+                if (this.targetTxHashes.contains(item.hash))
                 {
                     PermutationManager.getPermutationManager().addPeerToTransaction(peer, item.hash);
                     break;
