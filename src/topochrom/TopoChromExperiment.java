@@ -116,8 +116,15 @@ public class TopoChromExperiment {
             runExperiment(tx);
         }
         waitForExperimentsToComplete();
-        manager.writeDataToFile("data.csv");
 
+        // get adjacency matrices for true labels and inferred labels
+        List<TransactionPermutation> labelledTxPerms = new ArrayList(manager.transactionPermutationHashMap.values());
+        boolean[][] trueAdjMat = ClusteringManager.getAdjacencyMatrix(labelledTxPerms);
+
+        List<TransactionPermutation> inferredTxPerms  = ClusteringManager.clusterTransactions(labelledTxPerms);
+        boolean[][] inferredAdjMat = ClusteringManager.getAdjacencyMatrix(inferredTxPerms);
+
+        int goodness = ClusteringManager.clusteringGoodness(trueAdjMat, inferredAdjMat);
     }
 
 }

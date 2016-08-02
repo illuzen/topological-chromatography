@@ -77,24 +77,22 @@ public class PermutationManager
         return this.numTransactionsReceived;
     }
 
-    public void writeDataToFile(String filepath)
+    public static int[][] getDistanceMatrix(List<TransactionPermutation> txs)
     {
-        ArrayList<Sha256Hash> hashes = new ArrayList<Sha256Hash>(transactionPermutationHashMap.keySet());
-        int[][] distanceMatrix = new int[hashes.size()][hashes.size()];
+        int[][] distanceMatrix = new int[txs.size()][txs.size()];
 
-        for (int i = 0; i < transactionPermutationHashMap.size(); i++)
+        for (int i = 0; i < txs.size(); i++)
         {
-            TransactionPermutation perm1 = transactionPermutationHashMap.get(hashes.get(i));
+            TransactionPermutation perm1 = txs.get(i);
             distanceMatrix[i][i] = 0;
-            for (int j = i + 1; j < transactionPermutationHashMap.size(); j++)
+            for (int j = i + 1; j < txs.size(); j++)
             {
-                TransactionPermutation perm2 = transactionPermutationHashMap.get(hashes.get(j));
+                TransactionPermutation perm2 = txs.get(j);
                 int dist = distanceBetweenPermutations(perm1.permutation, perm2.permutation);
-                distanceMatrix[i][j] = dist;
-                distanceMatrix[j][i] = dist;
+                distanceMatrix[i][j] = distanceMatrix[j][i] = dist;
             }
         }
-
+        return distanceMatrix;
         // TODO write the distance matrix to file
     }
 
@@ -117,5 +115,12 @@ public class PermutationManager
             }
         }
         return distance;
+    }
+
+    // https://en.wikipedia.org/wiki/Kendall_rank_correlation_coefficient
+    public static double significanceTest()
+    {
+        // TODO
+       return 0.0;
     }
 }
