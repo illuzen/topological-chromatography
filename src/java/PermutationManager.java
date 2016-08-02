@@ -14,15 +14,17 @@ import java.util.concurrent.locks.Lock;
 public class PermutationManager
 {
 
-    private static PermutationManager singleton;
-    private static Integer lock;
+    private static PermutationManager singleton; // declares that there can only ever be one PermutationManager instance at a time?
+    private static Integer lock; // declared for the purposes for the synchronized block later?
 
-    public List<Peer> peers;
-    public HashMap<Peer, Integer> peerIndexHashMap;
-    public HashMap<Sha256Hash, TransactionPermutation> transactionPermutationHashMap;
+    public List<Peer> peers; //array of peer objects
+    public HashMap<Peer, Integer> peerIndexHashMap; //hashmap of peer to index relationship
+    public HashMap<Sha256Hash, TransactionPermutation> transactionPermutationHashMap; //hashmap of the transaction's hash and a permutation object
+    // which contains a list of integers corresponding to the peer/index relationship in peerIndexHashMap
 
     public PermutationManager(List<Peer> peers)
     {
+        //constructor
         this.peers = peers;
         this.peerIndexHashMap = new HashMap<Peer, Integer>();
         this.transactionPermutationHashMap = new HashMap<Sha256Hash, TransactionPermutation>();
@@ -30,23 +32,23 @@ public class PermutationManager
         int i = 0;
         for (Peer peer : peers)
         {
-            peerIndexHashMap.put(peer, i++);
+            peerIndexHashMap.put(peer, i++); // establishes the peer/index relationship in the peerIndexHashMap
         }
     }
 
     public static PermutationManager getPermutationManager()
     {
-        return singleton;
+        return singleton; //calls the constructor as a singleton?
     }
 
     public void addPeerToTransaction(Peer peer, Sha256Hash txHash)
     {
-        synchronized (lock)
+        synchronized (lock) //thread-safe zone in order not to overwrite or collide in the transactionPermutation mappings
         {
-            TransactionPermutation perm = transactionPermutationHashMap.get(txHash);
-            int index = peerIndexHashMap.get(peer);
-            assert perm.permutation.contains(index) == false;
-            perm.permutation.add(index);
+            TransactionPermutation perm = transactionPermutationHashMap.get(txHash); //loads permutation array for the correct transaction
+            int index = peerIndexHashMap.get(peer); //loads index of peer argument from the peerIndexHashMap
+            assert perm.permutation.contains(index) == false; //makes sure that the transactionPermutationHashMap for the tx does not already contain the peer's index
+            perm.permutation.add(index); // if pass, then add the index to the permutation map
 
         }
     }
