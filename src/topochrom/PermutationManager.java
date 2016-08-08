@@ -17,7 +17,7 @@ public class PermutationManager
     private static PermutationManager singleton;
     private static Integer lock;
     private int numTransactionsReceived = 0;
-
+    
     public PeerGroup peers;
     public HashMap<Peer, Integer> peerIndexHashMap;
     public HashMap<Sha256Hash, TransactionPermutation> transactionPermutationHashMap;

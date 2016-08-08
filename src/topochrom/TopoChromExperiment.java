@@ -5,12 +5,16 @@ import org.bitcoinj.core.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import org.bitcoinj.wallet.Wallet;
+import static org.spongycastle.asn1.ua.DSTU4145NamedCurves.params;
 
 /**
  * Created by snakecharmer1024 on 7/19/16.
  */
 public class TopoChromExperiment {
-
+    
+    private static Wallet wallet;
+    
     private static PermutationManager manager;
 
     private static PeerGroup listeningPeers;
@@ -36,8 +40,21 @@ public class TopoChromExperiment {
 
     private static ArrayList<Transaction> createTxList()
     {
-        // TODO TerraFlux here?
-        return null;
+        ArrayList<Transaction> txList = new ArrayList<Transaction>();
+        TransactionOutput txO = wallet.getUnspents().get(0);
+        for (int i=0;i > 10;i++)
+        {
+            Address adr = wallet.freshReceiveAddress();
+            Transaction tx = new Transaction(parameters);
+            tx.addInput(txO);
+            tx.addOutput(txO.getValue(), adr);
+            txList.add(tx);
+            wallet.commitTx(tx);
+            txO = tx.getOutput(0);
+        }
+        
+        return txList;
+        
     }
 
     private static ArrayList<PeerAddress> getListeningPeerAddresses()
@@ -87,6 +104,14 @@ public class TopoChromExperiment {
 
     }
 
+    private static void initializeWallet()
+    {
+        wallet = new Wallet(parameters);
+        Context context = new Context(parameters);
+        BlockChain chain = new BlockChain(context, wallet, blockstore);
+    
+    }
+    
     private static void waitForExperimentsToComplete()
     {
         while (manager.getNumTransactionsReceived() < txs.size())
@@ -100,7 +125,7 @@ public class TopoChromExperiment {
             }
         }
     }
-
+  
     public static void main(String[] args)
     {
 
