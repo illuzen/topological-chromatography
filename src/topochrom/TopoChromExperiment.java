@@ -5,6 +5,10 @@ import org.bitcoinj.core.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+<<<<<<< HEAD
+import org.bitcoinj.wallet.Wallet;
+import static org.spongycastle.asn1.ua.DSTU4145NamedCurves.params;
+=======
 import java.util.concurrent.ExecutionException;
 
 import org.bitcoinj.core.listeners.PeerConnectedEventListener;
@@ -13,11 +17,14 @@ import org.bitcoinj.net.discovery.DnsDiscovery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.bitcoinj.utils.BriefLogFormatter;
+>>>>>>> sc
 
 /**
  * Created by snakecharmer1024 on 7/19/16.
  */
 public class TopoChromExperiment {
+
+    private static Wallet wallet;
 
     private static final Logger log = LoggerFactory.getLogger(TopoChromExperiment.class);
 
@@ -50,8 +57,21 @@ public class TopoChromExperiment {
 
     private static ArrayList<Transaction> createTxList()
     {
-        // TODO TerraFlux here?
-        return null;
+        ArrayList<Transaction> txList = new ArrayList<Transaction>();
+        TransactionOutput txO = wallet.getUnspents().get(0);
+        for (int i=0;i > 10;i++)
+        {
+            Address adr = wallet.freshReceiveAddress();
+            Transaction tx = new Transaction(parameters);
+            tx.addInput(txO);
+            tx.addOutput(txO.getValue(), adr);
+            txList.add(tx);
+            wallet.commitTx(tx);
+            txO = tx.getOutput(0);
+        }
+        
+        return txList;
+        
     }
 
 //    private static ArrayList<PeerAddress> getListeningPeerAddresses()
@@ -145,6 +165,14 @@ public class TopoChromExperiment {
 
     }
 
+    private static void initializeWallet()
+    {
+        wallet = new Wallet(parameters);
+        Context context = new Context(parameters);
+        BlockChain chain = new BlockChain(context, wallet, blockstore);
+    
+    }
+
     // used to make sure all txs return before attempting to analyze the data
     private static void waitForExperimentsToComplete()
     {
@@ -160,7 +188,7 @@ public class TopoChromExperiment {
             }
         }
     }
-
+  
     public static void main(String[] args)
     {
         BriefLogFormatter.init();
