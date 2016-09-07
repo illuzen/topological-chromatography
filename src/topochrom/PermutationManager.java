@@ -4,6 +4,9 @@ import org.bitcoinj.core.Peer;
 import org.bitcoinj.core.PeerGroup;
 import org.bitcoinj.core.Sha256Hash;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -115,6 +118,34 @@ public class PermutationManager
             }
         }
         return distance;
+    }
+
+    public static void writeDistanceMatrix(List<TransactionPermutation> labelledTxs, List<TransactionPermutation> inferredTxs)
+    {
+        int[][] distMat = PermutationManager.getDistanceMatrix(labelledTxs);
+        PrintWriter writer;
+        try
+        {
+            writer = new PrintWriter("./distanceMatrix" + System.currentTimeMillis() + ".csv");
+        }
+        catch (FileNotFoundException e)
+        {
+            System.err.println(e);
+            return;
+        }
+
+        for (int txIndex = 0; txIndex < labelledTxs.size(); txIndex++)
+        {
+            TransactionPermutation tx = labelledTxs.get(txIndex);
+            for (Integer index : tx.permutation)
+            {
+                writer.print(index + ",");
+            }
+            writer.write(tx.peerLabel + "," + inferredTxs.get(txIndex).peerLabel + "\n" );
+
+        }
+        writer.close();
+
     }
 
     // https://en.wikipedia.org/wiki/Kendall_rank_correlation_coefficient

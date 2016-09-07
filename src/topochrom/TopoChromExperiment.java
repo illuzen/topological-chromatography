@@ -2,22 +2,26 @@ package topochrom;
 
 import org.bitcoinj.core.*;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-<<<<<<< HEAD
+
+import org.bitcoinj.store.BlockStore;
+import org.bitcoinj.store.BlockStoreException;
+import org.bitcoinj.store.MemoryBlockStore;
+import org.bitcoinj.wallet.UnreadableWalletException;
 import org.bitcoinj.wallet.Wallet;
-import static org.spongycastle.asn1.ua.DSTU4145NamedCurves.params;
-=======
 import java.util.concurrent.ExecutionException;
 
 import org.bitcoinj.core.listeners.PeerConnectedEventListener;
 import org.bitcoinj.core.listeners.PeerDisconnectedEventListener;
 import org.bitcoinj.net.discovery.DnsDiscovery;
+import org.bitcoinj.wallet.listeners.WalletCoinsReceivedEventListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.bitcoinj.utils.BriefLogFormatter;
->>>>>>> sc
 
 /**
  * Created by snakecharmer1024 on 7/19/16.
@@ -43,6 +47,8 @@ public class TopoChromExperiment {
     private static int numSendingPeers = 2;
 
     private static int numListeningPeers = 8;
+
+    private static String walletFilename;
 
     private static void runExperiment(Transaction tx)
     {
@@ -167,10 +173,36 @@ public class TopoChromExperiment {
 
     private static void initializeWallet()
     {
-        wallet = new Wallet(parameters);
-        Context context = new Context(parameters);
-        BlockChain chain = new BlockChain(context, wallet, blockstore);
-    
+        try
+        {
+            File walletFile = new File(walletFilename);
+            wallet = Wallet.loadFromFile(walletFile);
+            wallet.addCoinsReceivedEventListener(new WalletCoinsReceivedEventListener() {
+                @Override
+                public synchronized void onCoinsReceived(Wallet w, Transaction tx, Coin prevBalance, Coin newBalance) {
+                    System.out.println("\nReceived tx " + tx.getHashAsString());
+                    System.out.println(tx.toString());
+                }
+            });
+
+            Context context = new Context(parameters);
+            BlockStore blockStore = new MemoryBlockStore(parameters);
+            BlockChain chain = new BlockChain(context, wallet, blockStore);
+            final PeerGroup peerGroup = new PeerGroup(parameters, chain);
+            peerGroup.addPeerDiscovery(new DnsDiscovery(parameters));
+            peerGroup.startAsync();
+            peerGroup.downloadBlockChain();
+            peerGroup.stopAsync();
+            wallet.saveToFile(walletFile);
+
+        }
+        catch (Exception e)
+        {
+            System.err.println(e);
+            System.exit(1);
+        }
+
+
     }
 
     // used to make sure all txs return before attempting to analyze the data
@@ -188,14 +220,35 @@ public class TopoChromExperiment {
             }
         }
     }
-  
+
     public static void main(String[] args)
     {
         BriefLogFormatter.init();
 
         // We will change this to ID_MAINNET when we productionize it...
-        parameters = NetworkParameters.fromID(NetworkParameters.ID_TESTNET);
+        if (true)
+        {
+            parameters = NetworkParameters.fromID(NetworkParameters.ID_TESTNET);
+            walletFilename = "./testnet-wallet.dat";
+        }
+        else
+        {
+            parameters = NetworkParameters.fromID(NetworkParameters.ID_MAINNET);
+            walletFilename = "./mainnet-wallet.dat";
+        }
+
+//        try
+//        {
+//            wallet = new Wallet(parameters);
+//            wallet.saveToFile(new File(walletFilename));
+//        }
+//        catch (IOException e)
+//        {
+//            System.err.println(e);
+//        }
+
         manager = PermutationManager.getPermutationManager();
+        initializeWallet();
         initializeListeningPeers();
         initializeSendingPeers();
 
@@ -208,9 +261,11 @@ public class TopoChromExperiment {
 
         // get adjacency matrices for true labels and inferred labels
         List<TransactionPermutation> labelledTxPerms = new ArrayList(manager.transactionPermutationHashMap.values());
-        boolean[][] trueAdjMat = ClusteringManager.getAdjacencyMatrix(labelledTxPerms);
-
         List<TransactionPermutation> inferredTxPerms  = ClusteringManager.clusterTransactions(labelledTxPerms);
+
+        PermutationManager.writeDistanceMatrix(labelledTxPerms, inferredTxPerms);
+
+        boolean[][] trueAdjMat = ClusteringManager.getAdjacencyMatrix(labelledTxPerms);
         boolean[][] inferredAdjMat = ClusteringManager.getAdjacencyMatrix(inferredTxPerms);
 
         int goodness = ClusteringManager.clusteringGoodness(trueAdjMat, inferredAdjMat);

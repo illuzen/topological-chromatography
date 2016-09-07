@@ -1,9 +1,5 @@
 package topochrom;
 
-import org.bitcoinj.core.Transaction;
-import org.bitcoinj.wallet.SendRequest;
-import org.bitcoinj.wallet.Wallet;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -37,7 +33,7 @@ public class ClusteringManager
             int[] nums = new int[2];
 
 
-            // the average of the distance vectors is the distance vector of the average
+            // the average of the distance vectors is a reasonably substitute for the distance vector of the average
             for (int k = 0; k < distanceMatrix.length; k++)
             {
                 // add each component
