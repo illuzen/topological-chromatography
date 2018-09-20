@@ -12,6 +12,7 @@ import org.bitcoinj.store.BlockStore;
 import org.bitcoinj.store.BlockStoreException;
 import org.bitcoinj.store.MemoryBlockStore;
 import org.bitcoinj.store.SPVBlockStore;
+import org.bitcoinj.wallet.SendRequest;
 import org.bitcoinj.wallet.UnreadableWalletException;
 import org.bitcoinj.wallet.Wallet;
 import java.util.concurrent.ExecutionException;
@@ -43,8 +44,6 @@ public class TopoChromExperiment {
 
     private static List<Transaction> txs;
 
-    private static int waitTimeMilli = 100;
-
     private static int numSendingPeers = 2;
 
     private static int numListeningPeers = 8;
@@ -53,15 +52,34 @@ public class TopoChromExperiment {
 
     private static boolean mainnet = false;
 
-    private static void runExperiment(Transaction tx)
+    private static int feeSatoshis = 20000;
+
+//    private static void runExperiment(Transaction tx)
+    private static void runExperiment()
     {
+        TransactionOutput txO = wallet.getUnspents().get(0);
+        Address adr = wallet.freshReceiveAddress();
+        Coin amount = txO.getValue().subtract(Coin.valueOf(feeSatoshis));
+        SendRequest request = SendRequest.to(adr, amount);
+        try
+        {
+            wallet.completeTx(request);
+        }
+        catch (InsufficientMoneyException e)
+        {
+            System.err.println(e);
+            System.exit(1);
+        }
+        Transaction tx = request.tx;
+
         // randomly select a sending peer to send to
         // this peer is the data label for that transaction "tx"
         Random random = new Random();
-        int peerIndex = random.nextInt();
-        PeerGroup entryPeer = sendingPeers.get(peerIndex % numSendingPeers);
+        int peerIndex = random.nextInt(numSendingPeers);
+        PeerGroup entryPeer = sendingPeers.get(peerIndex);
         manager.addLabelledTx(tx.getHash(), peerIndex);
         entryPeer.broadcastTransaction(tx);
+        manager.waitForExperimentToComplete();
     }
 
     private static ArrayList<Transaction> createTxList()
@@ -70,15 +88,38 @@ public class TopoChromExperiment {
         TransactionOutput txO = wallet.getUnspents().get(0);
         for (int i=0;i < 10;i++)
         {
-            Address adr = wallet.freshReceiveAddress();
+            ECKey key = new ECKey();
+            Address adr = key.toAddress(parameters);
+            wallet.importKey(key);
+
+//            Address adr = wallet.freshReceiveAddress();
+//            Coin amount = txO.getValue().subtract(Coin.valueOf(feeSatoshis));
+//            SendRequest request = SendRequest.to(adr, amount);
+//            try
+//            {
+//                wallet.completeTx(request);
+//            }
+//            catch (InsufficientMoneyException e)
+//            {
+//                System.err.println(e);
+//                System.exit(1);
+//            }
+            Coin amount = txO.getValue().subtract(Coin.valueOf(feeSatoshis));
             Transaction tx = new Transaction(parameters);
-            tx.addInput(txO);
-            tx.addOutput(txO.getValue(), adr);
+            tx.addOutput(amount, adr);
+            TransactionInput input = tx.addSignedInput(txO, key);
+
+            log.info(input.getScriptSig().toString());
+            log.info(input.toString());
+            tx.verify();
             txList.add(tx);
+
             wallet.commitTx(tx);
             txO = tx.getOutput(0);
         }
-        
+
+
+
         return txList;
         
     }
@@ -103,21 +144,23 @@ public class TopoChromExperiment {
         listeningPeers.setMinBroadcastConnections(numListeningPeers);
         listeningPeers.addPeerDiscovery(new DnsDiscovery(parameters));
         //listeningPeers.getTorClient().
-        listeningPeers.addConnectedEventListener(new PeerConnectedEventListener() {
-            @Override
-            public void onPeerConnected(final Peer peer, int peerCount) {
-                log.info("Peer Connected: " + peer.toString());
-                log.info(peerCount + " peers total");
-            }
-        });
-        listeningPeers.addDisconnectedEventListener(new PeerDisconnectedEventListener() {
-            @Override
-            public void onPeerDisconnected(final Peer peer, int peerCount) {
-                log.info("Peer Disconnected: " + peer.toString());
-                log.info(peerCount + " peers left");
-            }
-        });
-
+//        listeningPeers.addConnectedEventListener(new PeerConnectedEventListener() {
+//            @Override
+//            public void onPeerConnected(final Peer peer, int peerCount) {
+//                log.info("Peer Connected: " + peer.toString());
+//                log.info(peerCount + " peers total");
+//            }
+//        });
+//        listeningPeers.addDisconnectedEventListener(new PeerDisconnectedEventListener() {
+//            @Override
+//            public void onPeerDisconnected(final Peer peer, int peerCount) {
+//                log.info("Peer Disconnected: " + peer.toString());
+//                log.info(peerCount + " peers left");
+//            }
+//        });
+        TransactionReceivedListener listener = new TransactionReceivedListener();
+        listeningPeers.addPreMessageReceivedEventListener(listener);
+        manager.setListener(listener);
         try
         {
             listeningPeers.startAsync();
@@ -152,7 +195,11 @@ public class TopoChromExperiment {
         sendingPeers = new ArrayList<PeerGroup>();
         for (int i = 0; i < numSendingPeers; i++)
         {
-            sendingPeers.add(new PeerGroup(parameters));
+            PeerGroup group = new PeerGroup(parameters);
+            group.setBloomFilteringEnabled(false);
+            group.setMinBroadcastConnections(1);
+            group.addPeerDiscovery(new DnsDiscovery(parameters));
+            sendingPeers.add(group);
         }
 
         /*
@@ -164,13 +211,28 @@ public class TopoChromExperiment {
             sendingPeers.add(group);
         }
         */
-
-        // wait for them all to connect
-        for (PeerGroup sendingPeer : sendingPeers)
+        try
         {
-            sendingPeer.setMaxConnections(1);
-            sendingPeer.start();
+            // wait for them all to connect
+            for (PeerGroup sendingPeer : sendingPeers)
+            {
+                sendingPeer.setMaxConnections(1);
+                sendingPeer.startAsync();
+                sendingPeer.waitForPeers(1).get();
+            }
         }
+        catch (InterruptedException e)
+        {
+            System.out.println(e);
+            System.exit(1);
+        }
+        catch (ExecutionException e)
+        {
+            System.out.println(e);
+            System.exit(1);
+        }
+
+
 
     }
 
@@ -207,7 +269,7 @@ public class TopoChromExperiment {
             peerGroup.downloadBlockChain();
             peerGroup.stopAsync();
             wallet.saveToFile(walletFile);
-
+            log.info(wallet.toString());
         }
         catch (Exception e)
         {
@@ -218,21 +280,6 @@ public class TopoChromExperiment {
 
     }
 
-    // used to make sure all txs return before attempting to analyze the data
-    private static void waitForExperimentsToComplete()
-    {
-        while (manager.getNumTransactionsReceived() < txs.size())
-        {
-            try
-            {
-                Thread.sleep(waitTimeMilli);
-            }
-            catch (InterruptedException ex)
-            {
-                System.err.println("Thread interrupted while sleeping :(");
-            }
-        }
-    }
 
     public static void main(String[] args)
     {
@@ -265,12 +312,16 @@ public class TopoChromExperiment {
         initializeListeningPeers();
         initializeSendingPeers();
 
-        txs = createTxList();
-        for (Transaction tx : txs)
+//        txs = createTxList();
+//        for (Transaction tx : txs)
+//        {
+//            runExperiment(tx);
+//        }
+        for (int i = 0; i < 10; i++)
         {
-            runExperiment(tx);
+            runExperiment();
         }
-        waitForExperimentsToComplete();
+
 
         // get adjacency matrices for true labels and inferred labels
         List<TransactionPermutation> labelledTxPerms = new ArrayList(manager.transactionPermutationHashMap.values());

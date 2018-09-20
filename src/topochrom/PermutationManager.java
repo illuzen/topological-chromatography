@@ -3,6 +3,8 @@ package topochrom;
 import org.bitcoinj.core.Peer;
 import org.bitcoinj.core.PeerGroup;
 import org.bitcoinj.core.Sha256Hash;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -17,10 +19,13 @@ import java.util.List;
 public class PermutationManager
 {
 
+    private static final Logger log = LoggerFactory.getLogger(PermutationManager.class);
     private static PermutationManager singleton;
-    private static Integer lock;
+    private static Integer lock = 0;
+    private static int waitTimeMilli = 100;
     private int numTransactionsReceived = 0;
-    
+    private boolean experimentRunning = false;
+
     public PeerGroup peers;
     public HashMap<Peer, Integer> peerIndexHashMap;
     public HashMap<Sha256Hash, TransactionPermutation> transactionPermutationHashMap;
@@ -30,7 +35,6 @@ public class PermutationManager
     {
         this.peerIndexHashMap = new HashMap<Peer, Integer>();
         this.transactionPermutationHashMap = new HashMap<Sha256Hash, TransactionPermutation>();
-        this.listener = new TransactionReceivedListener();
     }
 
     public static PermutationManager getPermutationManager()
@@ -52,8 +56,14 @@ public class PermutationManager
         }
     }
 
+    public void setListener(TransactionReceivedListener listener)
+    {
+        this.listener = listener;
+    }
+
     public void addPeerToTransaction(Peer peer, Sha256Hash txHash)
     {
+        log.info("Received Transaction " + txHash.toString() + " from peer " + peer.toString());
         synchronized (lock)
         {
             TransactionPermutation txPerm = transactionPermutationHashMap.get(txHash);
@@ -64,6 +74,24 @@ public class PermutationManager
             if (txPerm.permutation.size() == peerIndexHashMap.size())
             {
                 numTransactionsReceived++;
+                experimentRunning = false;
+            }
+        }
+    }
+
+
+    // wait for one experiment to complete before moving onto the next
+    public void waitForExperimentToComplete()
+    {
+        while (experimentRunning)
+        {
+            try
+            {
+                Thread.sleep(waitTimeMilli);
+            }
+            catch (InterruptedException ex)
+            {
+                System.err.println("Thread interrupted while sleeping :(");
             }
         }
     }
@@ -73,6 +101,7 @@ public class PermutationManager
         TransactionPermutation txPerm = new TransactionPermutation(txHash, peerIndex);
         transactionPermutationHashMap.put(txHash, txPerm);
         listener.addTargetTxHash(txHash);
+        experimentRunning = true;
     }
 
     public int getNumTransactionsReceived()
@@ -96,7 +125,6 @@ public class PermutationManager
             }
         }
         return distanceMatrix;
-        // TODO write the distance matrix to file
     }
 
     // Kendall-Tau distance https://en.wikipedia.org/wiki/Kendall_tau_distance
@@ -122,7 +150,6 @@ public class PermutationManager
 
     public static void writeDistanceMatrix(List<TransactionPermutation> labelledTxs, List<TransactionPermutation> inferredTxs)
     {
-        int[][] distMat = PermutationManager.getDistanceMatrix(labelledTxs);
         PrintWriter writer;
         try
         {
