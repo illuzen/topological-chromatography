@@ -11,6 +11,7 @@ import java.util.Random;
 import org.bitcoinj.store.BlockStore;
 import org.bitcoinj.store.BlockStoreException;
 import org.bitcoinj.store.MemoryBlockStore;
+import org.bitcoinj.store.SPVBlockStore;
 import org.bitcoinj.wallet.UnreadableWalletException;
 import org.bitcoinj.wallet.Wallet;
 import java.util.concurrent.ExecutionException;
@@ -50,6 +51,8 @@ public class TopoChromExperiment {
 
     private static String walletFilename;
 
+    private static boolean mainnet = false;
+
     private static void runExperiment(Transaction tx)
     {
         // randomly select a sending peer to send to
@@ -65,7 +68,7 @@ public class TopoChromExperiment {
     {
         ArrayList<Transaction> txList = new ArrayList<Transaction>();
         TransactionOutput txO = wallet.getUnspents().get(0);
-        for (int i=0;i > 10;i++)
+        for (int i=0;i < 10;i++)
         {
             Address adr = wallet.freshReceiveAddress();
             Transaction tx = new Transaction(parameters);
@@ -186,7 +189,17 @@ public class TopoChromExperiment {
             });
 
             Context context = new Context(parameters);
-            BlockStore blockStore = new MemoryBlockStore(parameters);
+            String filename;
+            if (mainnet)
+            {
+                filename = "./mainnet.blocks";
+            }
+            else
+            {
+                filename = "./testnet.blocks";
+            }
+            File blockfile = new File(filename);
+            BlockStore blockStore = new SPVBlockStore(parameters, blockfile);
             BlockChain chain = new BlockChain(context, wallet, blockStore);
             final PeerGroup peerGroup = new PeerGroup(parameters, chain);
             peerGroup.addPeerDiscovery(new DnsDiscovery(parameters));
@@ -226,15 +239,15 @@ public class TopoChromExperiment {
         BriefLogFormatter.init();
 
         // We will change this to ID_MAINNET when we productionize it...
-        if (true)
-        {
-            parameters = NetworkParameters.fromID(NetworkParameters.ID_TESTNET);
-            walletFilename = "./testnet-wallet.dat";
-        }
-        else
+        if (mainnet)
         {
             parameters = NetworkParameters.fromID(NetworkParameters.ID_MAINNET);
             walletFilename = "./mainnet-wallet.dat";
+        }
+        else
+        {
+            parameters = NetworkParameters.fromID(NetworkParameters.ID_TESTNET);
+            walletFilename = "./testnet-wallet.dat";
         }
 
 //        try
